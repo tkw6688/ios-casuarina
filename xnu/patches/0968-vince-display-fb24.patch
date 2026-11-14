@@ -28,15 +28,20 @@ index 1d3ee17..714c7eb 100644
  	PE_current_console(&video);
  	fPhys = video.v_baseAddr;
  	fWidth = (uint32_t)video.v_width;
-@@ -477,6 +489,104 @@ AppleCLCD::start(IOService *provider)
+@@ -477,6 +489,109 @@ AppleCLCD::start(IOService *provider)
  	return true;
  }
  
 +#if defined(VINCE)
-+/* The panel as LK left it: packed 24 bpp (bytes B, G, R), 1080x2160, in DDR. */
++/* The panel as LK left it: packed 24 bpp (bytes B, G, R), 1080x2160 (vince) or
++ * 1080x1920 (tiffany), in DDR. */
 +#define VINCE_FB_PHYS           0x90001000ull
 +#define VINCE_FB_W              1080
++#if defined(TIFFANY)
++#define VINCE_FB_H              1920
++#else
 +#define VINCE_FB_H              2160
++#endif
 +#define VINCE_FB_STRIDE         3240
 +
 +bool

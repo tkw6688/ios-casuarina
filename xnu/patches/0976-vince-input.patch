@@ -603,13 +603,17 @@ diff --git a/iokit/Kernel/arm/hid/SweetHID.cpp b/iokit/Kernel/arm/hid/SweetHID.c
 index d2f4fa1..ea69eae 100644
 --- a/iokit/Kernel/arm/hid/SweetHID.cpp
 +++ b/iokit/Kernel/arm/hid/SweetHID.cpp
-@@ -356,6 +356,12 @@ OSDefineMetaClassAndStructors(SweetHIDButtons, IOHIDEventService);
+@@ -356,6 +356,16 @@ OSDefineMetaClassAndStructors(SweetHIDButtons, IOHIDEventService);
   * app-switcher gesture.
   */
  #define SWEET_TOUCH_EDGE_PX 48
 +#define SWEET_TOUCH_PANEL_W 1080
 +#if defined(VINCE)
++#if defined(TIFFANY)
++#define SWEET_TOUCH_PANEL_H 1920        /* tiffany panel (SweetFramebuffer.cpp VINCE_FB_H) */
++#else
 +#define SWEET_TOUCH_PANEL_H 2160        /* vince panel (SweetFramebuffer.cpp VINCE_FB_H) */
++#endif
 +#else
 +#define SWEET_TOUCH_PANEL_H 2400
 +#endif

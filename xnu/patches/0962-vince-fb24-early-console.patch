@@ -53,14 +53,18 @@ diff --git a/osfmk/arm64/start.s b/osfmk/arm64/start.s
 index 9fd1cb9..654960e 100644
 --- a/osfmk/arm64/start.s
 +++ b/osfmk/arm64/start.s
-@@ -515,19 +515,34 @@ LEXT(start_first_cpu)
+@@ -515,19 +515,38 @@ LEXT(start_first_cpu)
  
  #if defined(SWEET)
  	/* Stage 0: white 64x32 band, no stack or page tables needed. */
 -#if defined(TOPAZ_4K)
 +#if defined(VINCE)
-+	/* vince: 1080x2160 packed 24 bpp, stride 3240, buffer at 0x90001000; bottom rows */
++	/* vince: 1080x2160; tiffany: 1080x1920; packed 24 bpp, stride 3240, at 0x90001000 */
++#if defined(TIFFANY)
++	MOV64	x0, (0x90001000 + 1888 * 3240)
++#else
 +	MOV64	x0, (0x90001000 + 2128 * 3240)
++#endif
 +#elif defined(TOPAZ_4K)
  	MOV64	x0, (0x5c000000 + 2368 * 4320)	/* topaz splash framebuffer */
  #else
@@ -117,18 +121,22 @@ diff --git a/osfmk/arm64/sweet_early.c b/osfmk/arm64/sweet_early.c
 index 9429767..89acdcd 100644
 --- a/osfmk/arm64/sweet_early.c
 +++ b/osfmk/arm64/sweet_early.c
-@@ -11,15 +11,27 @@
+@@ -11,15 +11,31 @@
  #include <stdint.h>
  #include <kern/misc_protos.h>
  
 -#if defined(TOPAZ_4K)
 -static volatile uint32_t *early_fb = (volatile uint32_t *)(uintptr_t)0x5c000000;  /* topaz splash */
 +#if defined(VINCE)
-+/* vince: 1080x2160, packed 24 bpp (bytes B,G,R), stride 3240, left lit by LK at 0x90001000 */
++/* vince: 1080x2160; tiffany: 1080x1920; packed 24 bpp (bytes B,G,R), stride 3240, at 0x90001000 */
 +static volatile uint8_t *early_fb = (volatile uint8_t *)(uintptr_t)0x90001000;
 +#define EARLY_BPP 3u
 +#define EARLY_WIDTH 1080u
++#if defined(TIFFANY)
++#define EARLY_HEIGHT 1920u
++#else
 +#define EARLY_HEIGHT 2160u
++#endif
 +#define EARLY_STRIDE_BYTES 3240u
 +#elif defined(TOPAZ_4K)
 +static volatile uint8_t *early_fb = (volatile uint8_t *)(uintptr_t)0x5c000000;  /* topaz splash */
