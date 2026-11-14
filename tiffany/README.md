@@ -35,6 +35,7 @@ Expected screen (from top):
 
 ```
 TIFFANY M3b: XNU loader
+fb 00000000 00000000 00000000 00000000
 img=0x10080000 dtb=0x13400000 EL=1 MPIDR=0x000000
 ramdisk 0x13600000 - 0x13607720 (... KiB)
 phys 0x20000000 size 0x60000000
@@ -45,9 +46,11 @@ FAKE XNU reached (loader test)
 LOADER TEST PASSED        <- green
 ```
 
-The exact addresses may differ: record them. If the screen is black or the text is
-skewed/wrong colors, the LK framebuffer is not 24 bpp/stride 3240; report a photo
-and we will try stride 3264 or 32 bpp/4320.
+The exact addresses may differ: record them. The `fb` line is the first four 32-bit
+words LK left at `0x90001000` before the loader cleared the screen; non-zero values
+confirm the base address, and their layout hints at 24 vs 32 bpp. If the screen is
+black or the text is skewed/wrong colors, the LK framebuffer is not 24 bpp/stride
+3240; report a photo and we will try stride 3264 or 32 bpp/4320.
 
 ## D1: the real kernel
 

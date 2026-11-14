@@ -190,10 +190,23 @@ void loader_main(uint64_t dtb, uint64_t img)
 {
 	uint64_t rd_start = 0, rd_end = 0;
 
+	/*
+	 * Sample the first words LK left in the splash buffer before con_add_target clears
+	 * the screen. Non-zero values prove the base address; the word layout tells whether
+	 * the panel is packed 24 bpp or 32 bpp.
+	 */
+#ifdef HOST
+	volatile uint32_t *fbw = (volatile uint32_t *)host_fb_map(FB_BASE, 16);
+#else
+	volatile uint32_t *fbw = (volatile uint32_t *)FB_BASE;
+#endif
+	uint32_t fb0 = fbw[0], fb1 = fbw[1], fb2 = fbw[2], fb3 = fbw[3];
+
 	stage = "start";
 	con_init();
 	con_add_target(FB_BASE, PANEL_W, PANEL_H, PANEL_STRIDE, 3);
 	ps("TIFFANY M3b: XNU loader"); pe(GREEN);
+	ps("fb "); px(fb0, 8); ps(" "); px(fb1, 8); ps(" "); px(fb2, 8); ps(" "); px(fb3, 8); pe(WHITE);
 	ps("img="); px(img, 9); ps(" dtb="); px(dtb, 9);
 	ps(" EL="); px((rsr("currentel") >> 2) & 3, 1);
 	ps(" MPIDR="); px(rsr("mpidr_el1") & 0xffffff, 6); pe(WHITE);
