@@ -1,5 +1,5 @@
 /*
- * vince XNU loader entry: arm64 Linux Image header so the Qualcomm LK treats the
+ * tiffany XNU loader entry: arm64 Linux Image header so the Qualcomm LK treats the
  * loader like a kernel. LK enters at EL1, MMU/D-cache off, x0 = DTB pointer.
  *
  * Adapted from the boot shim of ios-sweet / ios-topaz (MIT licence); see NOTICE.md.
