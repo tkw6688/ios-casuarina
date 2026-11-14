@@ -46,13 +46,14 @@ echo "=== loader"
 cp "$ROOT/tiffany/shim/out/loader.Image" "$LOADER"
 
 echo "=== ADT"
-# D0 only exercises the loader: leave /product out so the image stays byte-identical
-# whether or not the (non-git) iPhone X device tree is present.
-python3 "$ROOT/tiffany/tools/mkadt_tiffany.py" "$OUT/tiffany.adt" --no-product
+# D0 only exercises the loader: leave /product out and fix the random seed so the image
+# stays byte-identical whether or not the (non-git) iPhone X device tree is present.
+SEED=00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+python3 "$ROOT/tiffany/tools/mkadt_tiffany.py" "$OUT/tiffany.adt" --no-product --seed-hex "$SEED"
 
 echo "=== payload (fakexnu) + boot image"
 python3 "$ROOT/tiffany/tools/tiffany_pack.py" "$FAKE" "$OUT/tiffany-d0.img" \
-	--loader "$LOADER" --dtb "$DTB" --no-product \
+	--loader "$LOADER" --dtb "$DTB" --no-product --seed-hex "$SEED" \
 	--payload-out "$OUT/tiffany-d0.payload" \
 	--cmdline "debug=0xc serial=3 cpus=1 keepsyms=1"
 

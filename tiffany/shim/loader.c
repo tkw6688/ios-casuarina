@@ -29,9 +29,14 @@
 #define PAGE_16K		0x4000UL
 #define PAYLOAD_SCAN		0x40000UL	/* bytes searched for the magic at the start of the ramdisk */
 
-/* The only RAM window we hand to xnu: LK keeps its own data above 0x84a00000, modem etc. beyond */
-#define RAM_LO			0x10000000UL
-#define RAM_HI			0x84a00000UL
+/*
+ * The only RAM window we hand to xnu. First guess for tiffany: above the range where LK loads
+ * this image on vince (0x10080000) and the payload (0x13600000), below the early framebuffer
+ * mapping at 0x80000000. Still to be checked against tiffany's /proc/iomem: reserved carve-outs
+ * (modem/adsp/wcnss) inside this window must not be handed to the VM.
+ */
+#define RAM_LO			0x20000000UL
+#define RAM_HI			0x80000000UL
 
 struct payload_seg {
 	uint64_t vmaddr, vmsize, file_off, file_size;
@@ -226,7 +231,7 @@ void loader_main(uint64_t dtb, uint64_t img)
 
 	stage = "check layout";
 	if (p->phys_base < RAM_LO || p->phys_base + p->mem_size > RAM_HI || (p->phys_base & 0x1fffff))
-		fail("kernel RAM outside 10000000-849fffff or not 2 MiB aligned");
+		fail("kernel RAM outside 20000000-7fffffff or not 2 MiB aligned");
 	if (rd_end > p->phys_base && rd_start < p->phys_base + p->mem_size)
 		fail("ramdisk overlaps kernel memory");
 	if ((img + 0x10000) > p->phys_base && img < p->phys_base + p->mem_size)

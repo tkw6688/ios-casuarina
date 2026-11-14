@@ -19,10 +19,11 @@ sys.path.insert(0, os.path.join(HERE, '..', 'tools-fork'))
 import adt  # noqa: E402
 from mkadt import node, u32, u64, cstr, d22ap_product, BOOT_MANIFEST_HASH  # noqa: E402
 
-# Kernel-managed RAM. One contiguous range that is plain RAM on this phone (measured in M2:
-# 0x10000000-0x849fffff is cacheable RAM) and below 0x80000000, because the early framebuffer
-# mapping of start.s takes L1 slot 2 (0x80000000-0xbfffffff). LK puts the loader at 0x10080000
-# and the payload ramdisk at 0x13600000, both below this range.
+# Kernel-managed RAM. First guess: one contiguous range below 0x80000000, because the early
+# framebuffer mapping of start.s takes L1 slot 2 (0x80000000-0xbfffffff), and above the range
+# where LK loads the loader (0x10080000) and the payload (0x13600000) on vince. tiffany's
+# /proc/iomem is still to be measured: if it shows reserved carve-outs (modem/adsp/wcnss) inside
+# this window, shrink or split the range before handing it to the VM.
 PHYS_BASE = 0x20000000
 MEM_SIZE = 0x60000000	# 1.5 GiB: 0x20000000 - 0x7fffffff
 # /arm-io children are relative to this; it must not be 0 (serial_init bails)
@@ -149,7 +150,11 @@ def build(seed=None, product=True):
 
 
 if __name__ == '__main__':
-    root = build(product='--no-product' not in sys.argv)
+    seed_hex = None
+    if '--seed-hex' in sys.argv:
+        seed_hex = sys.argv[sys.argv.index('--seed-hex') + 1]
+    root = build(seed=bytes.fromhex(seed_hex) if seed_hex else None,
+                 product='--no-product' not in sys.argv)
     blob = adt.serialize(root)
     open(sys.argv[1], 'wb').write(blob)
     if '--dump' in sys.argv:

@@ -67,6 +67,7 @@ def main():
     ap.add_argument('--payload-out', help='also write the payload (for host tests / byte comparison)')
     ap.add_argument('--no-product', action='store_true',
                     help='omit /product (D0 loader test: keeps the image independent of the non-git D22AP ADT)')
+    ap.add_argument('--seed-hex', help='fixed 64-byte ADT random-seed as hex (reproducible D0 builds)')
     a = ap.parse_args()
 
     loader = open(a.loader, 'rb').read()
@@ -76,7 +77,8 @@ def main():
 
     with tempfile.TemporaryDirectory() as td:
         adt_path = os.path.join(td, 'tiffany.adt')
-        open(adt_path, 'wb').write(adt.serialize(mkadt_tiffany.build(product=not a.no_product)))
+        seed = bytes.fromhex(a.seed_hex) if a.seed_hex else None
+        open(adt_path, 'wb').write(adt.serialize(mkadt_tiffany.build(seed=seed, product=not a.no_product)))
         payload, info = mkpayload.build(a.kernel, adt_path, a.cmdline, a.ramdisk)
 
     if a.payload_out:
