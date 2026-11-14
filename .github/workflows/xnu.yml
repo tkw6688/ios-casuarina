@@ -15,6 +15,12 @@ on:
       keep_going:
         description: make -k (collect all compile errors in one run)
         default: "true"
+      runner:
+        description: macos-15-intel (reliable) or macos-15 (arm64, faster when not queued)
+        default: macos-15-intel
+      diagnostics:
+        description: also upload the build tree and inspect the KDK libs (slow)
+        default: "false"
   push:
     branches: [main, vince, tiffany]
     paths:
@@ -48,12 +54,10 @@ env:
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [macos-15, macos-15-intel]
+    # One runner per run: the arm64 and intel images build the same kernel, so the
+    # second job only doubled the minutes (and the arm64 runners often queue).
+    runs-on: ${{ inputs.runner || 'macos-15-intel' }}
     # macos-15 / macos-15-intel ship Xcode 16.x: its iig matches the xnu-8796 IORPC ABI
-    runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
@@ -76,7 +80,7 @@ jobs:
           grep -c 'export CC="$CCACHE_WRAP/clang"' dxb/build.sh
           # GitHub web /releases/download/ on dortania/KdkSupportPkg times out with HTTP 504;
           # use the GitHub REST API asset endpoint (Accept: application/octet-stream) instead.
-          sed -i '' 's|curl --progress-bar --max-time 900 --connect-timeout 60 -L -o /tmp/KDK.dmg "${KDK_URL}"|KDK_ASSET_URL="https://api.github.com/repos/dortania/KdkSupportPkg/releases/assets/135995669"; curl --fail --retry 3 --progress-bar --max-time 900 --connect-timeout 60 -H "Accept: application/octet-stream" -L -o /tmp/KDK.dmg "${KDK_ASSET_URL}"|' dxb/build.sh
+          sed -i '' 's|curl --progress-bar --max-time 900 --connect-timeout 60 -L -o /tmp/KDK.dmg "${KDK_URL}"|KDK_ASSET_URL="https://api.github.com/repos/dortania/KdkSupportPkg/releases/assets/135995669"; curl --fail --retry 3 --progress-bar --max-time 900 --connect-timeout 60 -H "Accept: application/octet-stream" -H "Authorization: Bearer ${KDK_TOKEN}" -L -o /tmp/KDK.dmg "${KDK_ASSET_URL}"|' dxb/build.sh
           grep -c 'KDK_ASSET_URL' dxb/build.sh
           ls dxb/patches
 
@@ -113,6 +117,8 @@ jobs:
         env:
           # keep going after errors so one run reports every compile failure
           MAKEFLAGS: ${{ inputs.keep_going == 'false' && '' || '-k' }}
+          # the KDK asset endpoint rate-limits anonymous requests (403 on shared runner IPs)
+          KDK_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ccache -z
           bash build.sh
@@ -133,7 +139,7 @@ jobs:
           [ -z "${missing:-}" ]
 
       - name: Package build tree for local compiles
-        if: always()
+        if: ${{ inputs.diagnostics == 'true' }}
         run: |
           # Generated headers, config option headers, mig output and the patched
           # source: enough to re-run any single compile command from the log locally.
@@ -148,14 +154,14 @@ jobs:
           ls -la buildtree.tgz
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ inputs.diagnostics == 'true' }}
         with:
-          name: ${{ matrix.runner == 'macos-15' && 'xnu-buildtree' || 'xnu-buildtree-intel' }}
+          name: xnu-buildtree
           path: buildtree.tgz
           retention-days: 7
 
       - name: Inspect closed KDK support libs
-        if: always()
+        if: ${{ inputs.diagnostics == 'true' }}
         run: |
           mkdir -p out/kdk-libs
           for lib in /Library/Developer/KDKs/*/System/Library/KernelSupport/lib*.a; do
@@ -177,6 +183,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ${{ matrix.runner == 'macos-15' && 'xnu-kernel' || 'xnu-kernel-intel' }}
+          name: xnu-kernel
           path: out/
           if-no-files-found: warn
