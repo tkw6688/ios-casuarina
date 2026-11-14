@@ -49,7 +49,7 @@ new file mode 100644
 index 0000000..2a37995
 --- /dev/null
 +++ b/bsd/dev/vince_input.c
-@@ -0,0 +1,631 @@
+@@ -0,0 +1,633 @@
 +/*
 + * VINCE (Redmi 5 Plus, MSM8953) keys and touch screen for SweetHID.cpp.
 + * Adapted from patch 0099-vince-input of https://github.com/arabaci0711-ux/ios-vince
@@ -436,7 +436,9 @@ index 0000000..2a37995
 +	tlmm_cfg(GPIO_SDA, 2, 0, 0, false, false);      /* blsp_i2c3, no pull (board pull-ups), 2 mA */
 +	tlmm_cfg(GPIO_SCL, 2, 0, 0, false, false);
 +	tlmm_cfg(GPIO_ATTN, 0, 3, 0, false, false);     /* input, pull-up */
-+	tlmm_cfg(GPIO_RST, 0, 3, 3, true, true);        /* out of reset */
++	tlmm_cfg(GPIO_RST, 0, 3, 3, true, false);       /* assert reset (active low) */
++	in_sleep(&touch_chan, 20);
++	tlmm_cfg(GPIO_RST, 0, 3, 3, true, true);        /* release reset */
 +	in_sleep(&touch_chan, 200);
 +
 +	if (in_rd(gcc, 0x20) & 0x80000000u) {
