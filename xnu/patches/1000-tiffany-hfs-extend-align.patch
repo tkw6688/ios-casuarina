@@ -1,0 +1,26 @@
+--- a/bsd/sweet_hfs/core/hfs_btreeio.c
++++ b/bsd/sweet_hfs/core/hfs_btreeio.c
+@@ -496,7 +496,13 @@
+ 	// size.  otherwise we trim back to be an even multiple of the
+ 	// btree node size.
+ 	//
+-	if ((filePtr->fcbEOF < (off_t)minEOF) || ((filePtr->fcbEOF - origSize) % btInfo.nodeSize) != 0) {
++	/*
++	 * The Linux hfsplus driver can leave a partial b-tree node at EOF
++	 * after writing small files while the image was mounted.  Trim that
++	 * tail before extending; otherwise the absolute alignment check below
++	 * panics even though the growth itself is node-aligned.
++	 */
++	if ((filePtr->fcbEOF < (off_t)minEOF) || ((filePtr->fcbEOF % btInfo.nodeSize) != 0)) {
+ 
+ 		if (filePtr->fcbEOF < (off_t)minEOF) {
+ 			retval = dskFulErr;
+@@ -508,7 +514,7 @@
+ 			
+ 			trim = filePtr->fcbEOF - origSize;
+ 		} else {
+-			trim = ((filePtr->fcbEOF - origSize) % btInfo.nodeSize);
++			trim = filePtr->fcbEOF % btInfo.nodeSize;
+ 		}
+ 
+ 		ret = TruncateFileC(vcb, filePtr, filePtr->fcbEOF - trim, 0, 0, FTOC(filePtr)->c_fileid, 0);
