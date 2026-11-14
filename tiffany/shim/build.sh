@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the vince XNU loader (Image). Needs clang, ld.lld, llvm-objcopy, llvm-readelf.
+# Build the tiffany XNU loader (Image). Needs clang, ld.lld, llvm-objcopy, llvm-readelf.
 #   bash build.sh [outdir]
 set -euo pipefail
 cd "$(dirname "$0")"
