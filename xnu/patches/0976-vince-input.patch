@@ -49,7 +49,7 @@ new file mode 100644
 index 0000000..2a37995
 --- /dev/null
 +++ b/bsd/dev/vince_input.c
-@@ -0,0 +1,549 @@
+@@ -0,0 +1,632 @@
 +/*
 + * VINCE (Redmi 5 Plus, MSM8953) keys and touch screen for SweetHID.cpp.
 + * Adapted from patch 0099-vince-input of https://github.com/arabaci0711-ux/ios-vince
@@ -63,16 +63,15 @@ index 0000000..2a37995
 + * (EE 0, read only); volume up = TLMM GPIO 85 (input, pull-up, active low,
 + * set up by LK).
 + *
-+ * Touch: Synaptics TD4310 TDDI, RMI4 over I2C at 0x20 on BLSP1 QUP3. LK
-+ * leaves it alone (clock off, pins plain GPIO, held in reset by GPIO 64's
++ * Touch: VINCE uses a Synaptics TD4310 (RMI4 @0x20); TIFFANY uses a
++ * FocalTech FT5435 (FT5x46 @0x38), both on BLSP1 QUP3. LK leaves the
++ * controller alone (clock off, pins plain GPIO, held in reset by GPIO 64's
 + * pull-down), so the thread sets pins, reset, clock and the QUP up itself.
 + * The QUP is polled in FIFO mode with v1 tags (Linux i2c-qup.c v1 path),
-+ * one START..STOP transaction per message. Reports: F01 interrupt status,
-+ * then F12 data1 (8 bytes per finger: type, x, y, z, wx, wy) for the first
-+ * VINCE_TOUCH_FINGERS fingers; the 32-byte input FIFO limits one read to 4.
-+ * Coordinates are panel pixels (1080x2160). Proven first in the shim
-+ * (vince-bringup/shim/touch.c). The only controller writes are the RMI4
-+ * page select (0xFF).
++ * one START..STOP transaction per message. VINCE reads F01/F12 RMI4; TIFFANY
++ * reads 0xA3 chip ID and 0x01 touch data (2 + 6*N bytes, 12-bit x/y). The
++ * 32-byte input FIFO limits one read to 4 fingers. Coordinates are panel
++ * pixels (1080x2160 vince / 1080x1920 tiffany).
 + *
 + * Boot-args: vincekeys=0 / vincetouch=0 turn a source off.
 + */
@@ -152,14 +151,21 @@ index 0000000..2a37995
 +#define CLK_CTL_400K    0xe031cu                /* 19.2 MHz XO, Linux's fast-mode divider */
 +#define CLK_CTL_100K    0x35du                  /* what the shim proved */
 +
-+#define RMI_ADDR        0x20
++#if defined(TIFFANY)
++#define TOUCH_ADDR      0x38    /* FocalTech FT5435 */
++#else
++#define TOUCH_ADDR      0x20    /* Synaptics TD4310 */
++#endif
 +#define VINCE_TOUCH_FINGERS 4
 +#define TOUCH_POLL_MS   8
 +
 +static vm_offset_t spmi_core, spmi_cnfg, spmi_obs, tlmm, gcc, qup;
 +static uint32_t qup_in_fifo, qup_out_fifo, qup_clk_ctl = CLK_CTL_400K;
++#if !defined(TIFFANY)
 +static int rmi_page = -1;
++#endif
 +static bool input_started;
++static int touch_dbg;
 +static int keys_chan, touch_chan;
 +
 +static uint32_t
@@ -293,7 +299,7 @@ index 0000000..2a37995
 +static int
 +qup_msg(int rd, const uint8_t *tx, uint8_t *rx, uint32_t n)
 +{
-+	uint32_t addr8 = (RMI_ADDR << 1) | (rd ? 1u : 0u);
++	uint32_t addr8 = (TOUCH_ADDR << 1) | (rd ? 1u : 0u);
 +	uint32_t ntx = rd ? 2 : n + 1;
 +	uint32_t cfg = CFG_I2C, got = 0;
 +	int r;
@@ -385,6 +391,7 @@ index 0000000..2a37995
 +	return r;
 +}
 +
++#if !defined(TIFFANY)
 +static int
 +rmi_read(uint16_t reg, uint8_t *buf, uint32_t n)
 +{
@@ -465,6 +472,21 @@ index 0000000..2a37995
 +	return true;
 +}
 +
++#endif /* !TIFFANY */
++
++#if defined(TIFFANY)
++static int
++ft_read(uint8_t reg, uint8_t *buf, uint32_t n)
++{
++	int r = qup_msg(0, &reg, NULL, 1);
++
++	if (!r) {
++		r = qup_msg(1, NULL, buf, n);
++	}
++	return r;
++}
++#endif /* TIFFANY */
++
 +static void
 +touch_release_all(void)
 +{
@@ -476,8 +498,12 @@ index 0000000..2a37995
 +static void
 +touch_thread(void *arg, wait_result_t result)
 +{
++#if defined(TIFFANY)
++	uint8_t d[2 + VINCE_TOUCH_FINGERS * 6];
++#else
 +	uint16_t f01_data = 0, f12_data = 0;
 +	uint8_t f12_mask = 0, bit = 0, d[VINCE_TOUCH_FINGERS * 8];
++#endif
 +	unsigned errors = 0, idle = 0;
 +	(void)arg;
 +	(void)result;
@@ -485,6 +511,26 @@ index 0000000..2a37995
 +	if (!touch_hw_init()) {
 +		goto out;
 +	}
++#if defined(TIFFANY)
++	{
++		uint8_t chip_id = 0, fw_ver = 0, vendor_id = 0;
++		int r = ft_read(0xa3, &chip_id, 1);
++
++		if (r && qup_clk_ctl != CLK_CTL_100K) {
++			printf("TIFFANY INPUT: FT5435 read at 400 kHz failed %d, retrying at 100 kHz\n", r);
++			qup_clk_ctl = CLK_CTL_100K;
++			r = ft_read(0xa3, &chip_id, 1);
++		}
++		if (r) {
++			printf("TIFFANY INPUT: FT5435 @ 0x38 chip ID read failed %d; touch off\n", r);
++			goto out;
++		}
++		(void)ft_read(0xa6, &fw_ver, 1);
++		(void)ft_read(0xa8, &vendor_id, 1);
++		printf("TIFFANY INPUT: FT5435 @ 0x38 chip %#x fw %#x vendor %#x, %d fingers (1080x1920)\n",
++		    chip_id, fw_ver, vendor_id, VINCE_TOUCH_FINGERS);
++	}
++#else
 +	/* Page 0 PDT, top down; interrupt bits are given out in this order. */
 +	for (int a = 0xe9; a >= 0x0a; a -= 6) {
 +		uint8_t e[6];
@@ -517,6 +563,7 @@ index 0000000..2a37995
 +	}
 +	printf("VINCE INPUT: touch on, F12 data %#x irq mask %#x, %d fingers\n",
 +	    f12_data, f12_mask, VINCE_TOUCH_FINGERS);
++#endif
 +
 +	for (;;) {
 +		/* the attention line (low) says a report is waiting; check anyway every ~100 ms */
@@ -525,6 +572,38 @@ index 0000000..2a37995
 +			continue;
 +		}
 +		idle = 0;
++#if defined(TIFFANY)
++		int r = ft_read(0x01, d, sizeof(d));
++		if (!r) {
++			uint8_t count = d[1] & 0x0fu;
++			bool seen[VINCE_TOUCH_FINGERS] = { false, false, false, false };
++
++			if (count > VINCE_TOUCH_FINGERS) {
++				count = 0;
++			}
++			for (uint8_t i = 0; i < count; i++) {
++				const uint8_t *p = d + 2 + 6 * i;
++				uint8_t ev = p[0] >> 6;         /* 0 = down, 1 = up, 2 = contact */
++				uint8_t id = (p[2] >> 4) & 0x0fu;
++				int x = ((int)(p[0] & 0x0fu) << 8) | p[1];
++				int y = ((int)(p[2] & 0x0fu) << 8) | p[3];
++
++				if (touch_dbg) {
++					printf("TIFFANY INPUT: touch id=%u down=%d x=%d y=%d\n",
++					    id, (ev == 0 || ev == 2), x, y);
++				}
++				if (id < VINCE_TOUCH_FINGERS) {
++					seen[id] = true;
++					sweet_hid_touch(id, (ev == 0 || ev == 2) ? 1 : 0, x, y);
++				}
++			}
++			for (int f = 0; f < VINCE_TOUCH_FINGERS; f++) {
++				if (!seen[f]) {
++					sweet_hid_touch(f, 0, 0, 0);
++				}
++			}
++		}
++#else
 +		uint8_t irq = 0;
 +		int r = rmi_read((uint16_t)(f01_data + 1), &irq, 1);  /* reading acks the controller */
 +		if (!r && (irq & f12_mask)) {
@@ -537,6 +616,7 @@ index 0000000..2a37995
 +				}
 +			}
 +		}
++#endif
 +		if (r) {
 +			if ((errors++ % 100u) == 0) {
 +				printf("VINCE INPUT: touch read error %d (i2c %#x qup %#x)\n", r,
@@ -568,6 +648,9 @@ index 0000000..2a37995
 +	(void)PE_parse_boot_argn("vincekeys", &keys, sizeof(keys));
 +	(void)PE_parse_boot_argn("vincetouch", &touch, sizeof(touch));
 +	tlmm = ml_io_map(TLMM_PA, TLMM_SIZE);
++#if defined(TIFFANY)
++	(void)PE_parse_boot_argn("vincetouchdbg", &touch_dbg, sizeof(touch_dbg));
++#endif
 +	if (!tlmm) {
 +		printf("VINCE INPUT: TLMM mapping failed\n");
 +		return;
