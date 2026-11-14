@@ -49,7 +49,7 @@ new file mode 100644
 index 0000000..2a37995
 --- /dev/null
 +++ b/bsd/dev/vince_input.c
-@@ -0,0 +1,633 @@
+@@ -0,0 +1,657 @@
 +/*
 + * VINCE (Redmi 5 Plus, MSM8953) keys and touch screen for SweetHID.cpp.
 + * Adapted from patch 0099-vince-input of https://github.com/arabaci0711-ux/ios-vince
@@ -96,6 +96,11 @@ index 0000000..2a37995
 +#define PON_PPID        0x008u
 +#define PON_RT_STS      0x0810u
 +#define NO_APID         0xffffu
++
++extern int vince_pmic_init(void);
++extern int vince_pmic_read(unsigned ppid, unsigned reg, uint8_t *out);
++extern int vince_pmic_write(unsigned ppid, unsigned reg, uint8_t val);
++extern void vince_pmic_scan(void);
 +
 +#define TLMM_PA         0x01000000u
 +#define TLMM_SIZE       0x56000u
@@ -432,6 +437,25 @@ index 0000000..2a37995
 +touch_hw_init(void)
 +{
 +	static const uint8_t blk[4] = {4, 16, 32, 0};
++
++	/* FT5435: Android enables vdd (pm8953_l10) and vcc_i2c (pm8953_l6) before reset. */
++	if (vince_pmic_init() == 0) {
++		uint8_t v6 = 0, v10 = 0;
++		int r6 = vince_pmic_read(0x4500, 0x46, &v6);
++		int r10 = vince_pmic_read(0x4900, 0x46, &v10);
++
++		printf("TIFFANY INPUT: LDO6 en=%#x r=%d, LDO10 en=%#x r=%d\n", v6, r6, v10, r10);
++		if (r6 == 0 && !(v6 & 0x80)) {
++			printf("TIFFANY INPUT: enable LDO6 -> %d\n", vince_pmic_write(0x4500, 0x46, v6 | 0x80));
++		}
++		if (r10 == 0 && !(v10 & 0x80)) {
++			printf("TIFFANY INPUT: enable LDO10 -> %d\n", vince_pmic_write(0x4900, 0x46, v10 | 0x80));
++		}
++		if (r6 < 0 || r10 < 0) {
++			vince_pmic_scan();
++		}
++		in_sleep(&touch_chan, 10);
++	}
 +
 +	tlmm_cfg(GPIO_SDA, 2, 0, 0, false, false);      /* blsp_i2c3, no pull (board pull-ups), 2 mA */
 +	tlmm_cfg(GPIO_SCL, 2, 0, 0, false, false);
