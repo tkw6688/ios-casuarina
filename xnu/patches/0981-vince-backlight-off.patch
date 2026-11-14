@@ -21,7 +21,7 @@ index 841d029..db5ffb8 100644
  #include <machine/machine_routines.h>
  
  extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
-@@ -110,4 +111,98 @@ vince_pmic_read(unsigned ppid, unsigned reg, uint8_t *val)
+@@ -110,4 +111,144 @@ vince_pmic_read(unsigned ppid, unsigned reg, uint8_t *val)
  	lck_mtx_unlock(pmic_lock);
  	return r;
  }
@@ -60,6 +60,52 @@ index 841d029..db5ffb8 100644
 +		delay(1);
 +	}
 +	return -100;
++}
++
++int
++vince_pmic_write(unsigned ppid, unsigned reg, uint8_t val)
++{
++	vm_offset_t c;
++	int r;
++
++	if (!pmic_lock) {
++		return -2;
++	}
++	lck_mtx_lock(pmic_lock);
++	c = pmic_channel(ppid);
++	if (!c) {
++		lck_mtx_unlock(pmic_lock);
++		return -1;
++	}
++	r = pmic_write_byte(c, reg, val);
++	lck_mtx_unlock(pmic_lock);
++	return r;
++}
++
++void
++vince_pmic_scan(void)
++{
++	if (!pmic_core) {
++		return;
++	}
++	for (unsigned apid = 0; apid < 256; apid++) {
++		uint32_t m = *(volatile uint32_t *)(pmic_core + 0x800 + 4 * apid);
++		uint8_t r40 = 0, r41 = 0, r46 = 0;
++		int e40, e41, e46;
++		unsigned ppid;
++
++		if (!m) {
++			continue;
++		}
++		ppid = (m >> 8) & 0xFFFu;
++		e40 = vince_pmic_read(ppid, 0x40, &r40);
++		e41 = vince_pmic_read(ppid, 0x41, &r41);
++		e46 = vince_pmic_read(ppid, 0x46, &r46);
++		if (e40 == 0 || e41 == 0 || e46 == 0) {
++			printf("TIFFANY PMIC: apid %u ppid %#x r40=%d v40=%#x r41=%d v41=%#x r46=%d v46=%#x\n",
++			    apid, ppid, e40, r40, e41, r41, e46, r46);
++		}
++	}
 +}
 +
 +void
