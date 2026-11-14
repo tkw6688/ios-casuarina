@@ -49,7 +49,7 @@ new file mode 100644
 index 0000000..2a37995
 --- /dev/null
 +++ b/bsd/dev/vince_input.c
-@@ -0,0 +1,632 @@
+@@ -0,0 +1,631 @@
 +/*
 + * VINCE (Redmi 5 Plus, MSM8953) keys and touch screen for SweetHID.cpp.
 + * Adapted from patch 0099-vince-input of https://github.com/arabaci0711-ux/ios-vince
@@ -413,6 +413,7 @@ index 0000000..2a37995
 +	}
 +	return r;
 +}
++#endif /* !TIFFANY */
 +
 +/* ---- touch ---- */
 +
@@ -471,8 +472,6 @@ index 0000000..2a37995
 +	    in_rd(qup, QUP_HW_VERSION), io, qup_in_fifo, qup_out_fifo);
 +	return true;
 +}
-+
-+#endif /* !TIFFANY */
 +
 +#if defined(TIFFANY)
 +static int
