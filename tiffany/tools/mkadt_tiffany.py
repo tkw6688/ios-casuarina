@@ -103,6 +103,19 @@ def build(seed=None, product=True):
         # <gicd base, gicd size, gicc base, gicc size> relative to SOC_BASE (pe_fiq.c, VINCE branch)
         ('reg', u64(GICD - SOC_BASE, GICD_SIZE, GICC - SOC_BASE, GICC_SIZE)),
     ])
+    # IOMobileFramebuffer.framework counts /arm-io children whose device_type is
+    # "display-subsystem" and then waits for that many IOMobileFramebuffer
+    # services.  AppleCLCD (a subclass) matches this nub by compatible
+    # "sweet,display"; without it backboardd/SpringBoard report
+    # "failed to find the main CADisplay".
+    disp0 = node('disp0', [
+        ph(),
+        ('device_type', cstr('display-subsystem')),
+        ('compatible', cstr('sweet,display')),
+        ('canvas-width', u32(FB_W)),
+        ('canvas-height', u32(FB_H)),
+    ])
+
     arm_io = node('arm-io', [
         ph(),
         ('device_type', cstr('sweet-io')),
@@ -110,10 +123,10 @@ def build(seed=None, product=True):
         ('#address-cells', u32(2)),
         ('#size-cells', u32(2)),
         ('ranges', u64(0, SOC_BASE, 0x100000000 - SOC_BASE)),
-    ], [gic,
+    ], [gic, disp0,
         # No hardware: watchdogd checks IODeviceTree:/arm-io/wdt for no-pmu.
         node('wdt', [ph(), ('no-pmu', u32(1))])])
-    # Deliberately absent: disp0 (SweetFramebuffer drives topaz's MDP), wlan, sweet-ufs.
+    # Deliberately absent: wlan, sweet-ufs.  disp0 above is the IOMobileFramebuffer nub.
 
     fbcon = node('sweet-fbcon', [
         ph(),
