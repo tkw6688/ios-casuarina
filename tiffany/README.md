@@ -66,7 +66,7 @@ After D0 passes:
 
    ```bash
    python3 tiffany/tools/tiffany_pack.py kernel.development.sweet out/tiffany-d1.img \
-     --cmdline "debug=0xc serial=3 cpus=8 keepsyms=1"
+     --cmdline "debug=0xc serial=3 cpus=8 keepsyms=1 wdt=-1"
    fastboot boot tiffany-d1.img
    ```
 
