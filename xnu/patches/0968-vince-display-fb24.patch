@@ -212,7 +212,7 @@ index 1d3ee17..714c7eb 100644
 +				const uint32_t *sp = (const uint32_t *)src;
 +				uint64_t n = (uint64_t)s->height * (uint64_t)(s->bytesPerRow / 4);
 +				bool empty = true;
-+				for (uint64_t k = 0; k < n; k += 4096) {
++				for (uint64_t k = 0; k < n; k++) {
 +					if (sp[k]) {
 +						empty = false;
 +						break;
