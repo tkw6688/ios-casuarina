@@ -211,9 +211,24 @@ index 1d3ee17..714c7eb 100644
  		}
  		uint64_t last = (uint64_t)s->offset + (uint64_t)(sy + h - 1) * s->bytesPerRow +
  		    (uint64_t)(sx + w) * 4;
-@@ -1424,13 +1560,43 @@ AppleCLCD::present(const uint8_t *rec)
+@@ -1424,13 +1560,58 @@ AppleCLCD::present(const uint8_t *rec)
  		}
- 		if (src != 0 && bpe == 4) {
+ 			if (src != 0 && bpe == 4) {
++			{
++				const uint32_t *sp = (const uint32_t *)src;
++				uint64_t n = (uint64_t)s->height * (uint64_t)(s->bytesPerRow / 4);
++				bool empty = true;
++				for (uint64_t k = 0; k < n; k += 4096) {
++					if (sp[k]) {
++						empty = false;
++						break;
++					}
++				}
++				if (empty) {
++					w = 0;
++					IOLog("VINCE DIAG: skip empty layer id %u\n", id);
++				}
++			}
  			for (int32_t y = 0; y < h; y++) {
 -				memcpy((void *)(dst + (uint64_t)(dy + y) * fRowBytes + (uint64_t)dx * 4),
 +				memcpy((void *)(dst + (uint64_t)(dy + y) * dstride + (uint64_t)dx * 4),
