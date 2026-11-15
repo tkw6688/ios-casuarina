@@ -206,7 +206,7 @@ index 6ef93ad..89d83a0 100644
  void
  flush_dcache(
  	__unused vm_offset_t addr,
-@@ -534,3 +548,11 @@ platform_cache_flush_wimg(
+@@ -534,3 +548,16 @@ platform_cache_flush_wimg(
  }
  
  #endif  /* __ARM_COHERENT_IO__ */
@@ -217,6 +217,11 @@ index 6ef93ad..89d83a0 100644
 +sweet_dcache_clean(vm_offset_t addr, unsigned length)
 +{
 +	clean_dcache(addr, length, FALSE);
++}
++void
++sweet_dcache_invalidate(vm_offset_t addr, unsigned length)
++{
++	sweet_dcache_op(addr, length, FALSE, true);
 +}
 diff --git a/osfmk/console/video_console.c b/osfmk/console/video_console.c
 index df9605e..4193f57 100644
@@ -231,7 +236,7 @@ index df9605e..4193f57 100644
  void sweet_console_retarget(vm_offset_t va);
  void (*sweet_console_show_hook)(void);
  static vm_offset_t sweet_shadow_va;
-@@ -3345,7 +3345,7 @@ sweet_flush_rows(unsigned int top, unsigned int bottom)
+@@ -3345,8 +3345,7 @@ sweet_flush_rows(unsigned int top, unsigned int bottom)
  		}
  		return;
  	}
