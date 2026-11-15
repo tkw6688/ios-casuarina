@@ -134,7 +134,7 @@ index 714c7eb..766c41a 100644
  }
  #endif /* VINCE */
  
-@@ -611,6 +618,28 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+@@ -611,6 +618,51 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
  		    (IOMobileFramebufferUserClient *)fb->fClients->getObject(i);
  		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
  	}
@@ -158,6 +158,29 @@ index 714c7eb..766c41a 100644
 +		IOLog("VINCE FB: %llu s: clients %u swaps begun %u shown %u (last %u us) display %s shadow %08x panel %08x\n",
 +		    count / 60, fb->fClients->getCount(), fb->fSwapID, fb->fVinceBlits, fb->fVinceBlitUS,
 +		    fb->fPowerOff ? "off" : "on", ssum, psum);
++	}
++	if (fb->fShadowVA != 0 && (count % 3600) == 0) {
++		/* every 60 s: which surfaces have content at all (every 16th word) */
++		for (uint32_t sid = 2; sid <= 10; sid++) {
++			SweetSurface *ss = sweet_surface_copy(sid);
++			if (ss == NULL) {
++				continue;
++			}
++			uintptr_t a = ss->kernelAddress();
++			uint64_t nz = 0;
++			if (a != 0) {
++				const uint32_t *p = (const uint32_t *)a;
++				uint64_t n = (uint64_t)ss->height * (uint64_t)(ss->bytesPerRow / 4);
++				for (uint64_t k = 0; k < n; k += 16) {
++					if (p[k]) {
++						nz++;
++					}
++				}
++			}
++			IOLog("VINCE DIAG: s%u %ux%u bpr %u addr %p nz %llu\n",
++			    sid, ss->width, ss->height, ss->bytesPerRow, (void *)a, nz);
++			ss->release();
++		}
 +	}
 +#endif
  	if (fb->fIntf1 != NULL && (count % 300) == 0) {
