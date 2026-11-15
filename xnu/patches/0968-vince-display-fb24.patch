@@ -28,7 +28,7 @@ index 1d3ee17..714c7eb 100644
  	PE_current_console(&video);
  	fPhys = video.v_baseAddr;
  	fWidth = (uint32_t)video.v_width;
-@@ -477,6 +489,109 @@ AppleCLCD::start(IOService *provider)
+@@ -477,6 +489,115 @@ AppleCLCD::start(IOService *provider)
  	return true;
  }
  
@@ -68,6 +68,12 @@ index 1d3ee17..714c7eb 100644
 +	fPixels = fPanelSurf != NULL ? fPanelSurf->kernelAddress() : 0;
 +	fSurface = sweet_surface_create_buffer(fLogicalW, fLogicalH, SWEET_FB_FORMAT_BGRA);
 +	fShadowVA = fSurface != NULL ? fSurface->kernelAddress() : 0;
++	if (fShadowVA != 0) {
++		volatile uint32_t *pat = (volatile uint32_t *)fShadowVA;
++		for (uint64_t i = 0; i < (uint64_t)fLogicalW * (uint64_t)fLogicalH; i++) {
++			pat[i] = 0x5a5a5a5au;
++		}
++	}
 +	fWorkLoop = IOWorkLoop::workLoop();
 +	fXMap = (uint16_t *)IOMallocData(fWidth * sizeof(uint16_t));
 +	if (fLock == NULL || fClients == NULL || fPixels == 0 || fShadowVA == 0 || fWorkLoop == NULL || fXMap == NULL) {
@@ -205,7 +211,7 @@ index 1d3ee17..714c7eb 100644
  		}
  		uint64_t last = (uint64_t)s->offset + (uint64_t)(sy + h - 1) * s->bytesPerRow +
  		    (uint64_t)(sx + w) * 4;
-@@ -1424,13 +1560,19 @@ AppleCLCD::present(const uint8_t *rec)
+@@ -1424,13 +1560,21 @@ AppleCLCD::present(const uint8_t *rec)
  		}
  		if (src != 0 && bpe == 4) {
  			for (int32_t y = 0; y < h; y++) {
@@ -214,6 +220,8 @@ index 1d3ee17..714c7eb 100644
  				    (const void *)(src + s->offset + (uint64_t)(sy + y) * s->bytesPerRow + (uint64_t)sx * 4),
  				    (size_t)w * 4);
  			}
++			IOLog("VINCE DIAG: src %p id %u off %llu bpr %u w %d h %d pix0 %08x\n",
++			    (void *)src, id, s->offset, s->bytesPerRow, w, h, ((const uint32_t *)src)[0]);
  		}
  		s->release();
  	}
