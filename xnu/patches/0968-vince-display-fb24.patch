@@ -211,7 +211,7 @@ index 1d3ee17..714c7eb 100644
  		}
  		uint64_t last = (uint64_t)s->offset + (uint64_t)(sy + h - 1) * s->bytesPerRow +
  		    (uint64_t)(sx + w) * 4;
-@@ -1424,13 +1560,21 @@ AppleCLCD::present(const uint8_t *rec)
+@@ -1424,13 +1560,43 @@ AppleCLCD::present(const uint8_t *rec)
  		}
  		if (src != 0 && bpe == 4) {
  			for (int32_t y = 0; y < h; y++) {
@@ -220,13 +220,35 @@ index 1d3ee17..714c7eb 100644
  				    (const void *)(src + s->offset + (uint64_t)(sy + y) * s->bytesPerRow + (uint64_t)sx * 4),
  				    (size_t)w * 4);
  			}
-+			IOLog("VINCE DIAG: src %p id %u off %llu bpr %u w %d h %d pix0 %08x\n",
-+			    (void *)src, id, s->offset, s->bytesPerRow, w, h, ((const uint32_t *)src)[0]);
++			{
++				const uint32_t *sp = (const uint32_t *)src;
++				uint64_t nz = 0;
++				uint64_t n = (uint64_t)s->height * (uint64_t)(s->bytesPerRow / 4);
++				for (uint64_t k = 0; k < n; k++) {
++					if (sp[k]) {
++						nz++;
++					}
++				}
++				IOLog("VINCE DIAG: src %p id %u off %llu bpr %u w %d h %d len %llu nz %llu pix0 %08x mid %08x\n",
++				    (void *)src, id, s->offset, s->bytesPerRow, w, h,
++				    (unsigned long long)(s->memory ? s->memory->getLength() : 0), nz, sp[0], sp[n / 2]);
++			}
  		}
  		s->release();
  	}
 +#if defined(VINCE)
 +	if (fShadowVA != 0) {
++		{
++			const uint32_t *sh = (const uint32_t *)fShadowVA;
++			uint64_t n = (uint64_t)fLogicalW * (uint64_t)fLogicalH;
++			uint64_t snz = 0;
++			for (uint64_t k = 0; k < n; k++) {
++				if (sh[k]) {
++					snz++;
++				}
++			}
++			IOLog("VINCE DIAG: shadow nz %llu of %llu pix0 %08x\n", snz, n, sh[0]);
++		}
 +		blitVince();
 +		return;
 +	}
