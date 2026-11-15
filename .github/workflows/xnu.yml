@@ -136,6 +136,11 @@ jobs:
           for f in makedefs/MakeInc.def osfmk/arm64/sweet_early.c iokit/Kernel/arm/SweetFramebuffer.cpp iokit/Kernel/arm/hid/SweetHID.cpp; do
             if grep -q TIFFANY "dxb/xnu/$f"; then echo "ok   tiffany $f"; else echo "MISSING tiffany patch in $f"; missing=1; fi
           done
+          # dxb skips a failing patch silently (that is how the 0968/0981 skip that broke the
+          # link went unnoticed): check that the late vince patches really produced their code
+          grep -q 'blitVince' dxb/xnu/iokit/Kernel/arm/SweetFramebuffer.cpp || { echo 'MISSING 0968 blitVince'; missing=1; }
+          grep -q 'skip empty layer' dxb/xnu/iokit/Kernel/arm/SweetFramebuffer.cpp || { echo 'MISSING 0968 empty-layer skip'; missing=1; }
+          grep -q 'vince_pmic_scan' dxb/xnu/bsd/dev/vince_pmic.c || { echo 'MISSING 0981 vince_pmic_scan'; missing=1; }
           [ -z "${missing:-}" ]
 
       - name: Package build tree for local compiles

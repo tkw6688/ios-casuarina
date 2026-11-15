@@ -213,7 +213,7 @@ index 1d3ee17..714c7eb 100644
  		    (uint64_t)(sx + w) * 4;
 @@ -1424,13 +1560,58 @@ AppleCLCD::present(const uint8_t *rec)
  		}
- 			if (src != 0 && bpe == 4) {
+ 		if (src != 0 && bpe == 4) {
 +			{
 +				const uint32_t *sp = (const uint32_t *)src;
 +				uint64_t n = (uint64_t)s->height * (uint64_t)(s->bytesPerRow / 4);
