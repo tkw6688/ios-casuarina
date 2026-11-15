@@ -134,16 +134,30 @@ index 714c7eb..766c41a 100644
  }
  #endif /* VINCE */
  
-@@ -611,6 +618,14 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+@@ -611,6 +618,28 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
  		    (IOMobileFramebufferUserClient *)fb->fClients->getObject(i);
  		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
  	}
 +#if defined(VINCE)
 +	if (fb->fShadowVA != 0 && (count % 600) == 0) {
 +		/* every 10 s: is iOS connected to the display and drawing into it? */
-+		IOLog("VINCE FB: %llu s: clients %u swaps begun %u shown %u (last %u us) display %s\n",
++		uint32_t ssum = 0, psum = 0;
++		{
++			/* sample the shadow (BGRA, logical size) and the panel (24 bpp) */
++			const uint32_t *sh = (const uint32_t *)fb->fShadowVA;
++			const uint8_t *pb = (const uint8_t *)fb->fPixels;
++			uint64_t n = (uint64_t)fb->fLogicalW * (uint64_t)fb->fLogicalH;
++			uint64_t pn = (uint64_t)fb->fRowBytes * (uint64_t)fb->fHeight;
++			for (uint64_t i = 0; i < n; i += 4093) {
++				ssum = (ssum << 1) ^ sh[i];
++			}
++			for (uint64_t i = 0; i < pn; i += 4093) {
++				psum = (psum << 1) ^ pb[i];
++			}
++		}
++		IOLog("VINCE FB: %llu s: clients %u swaps begun %u shown %u (last %u us) display %s shadow %08x panel %08x\n",
 +		    count / 60, fb->fClients->getCount(), fb->fSwapID, fb->fVinceBlits, fb->fVinceBlitUS,
-+		    fb->fPowerOff ? "off" : "on");
++		    fb->fPowerOff ? "off" : "on", ssum, psum);
 +	}
 +#endif
  	if (fb->fIntf1 != NULL && (count % 300) == 0) {
