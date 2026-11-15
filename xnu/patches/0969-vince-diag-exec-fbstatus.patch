@@ -134,7 +134,7 @@ index 714c7eb..766c41a 100644
  }
  #endif /* VINCE */
  
-@@ -611,6 +618,51 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
+@@ -611,6 +618,55 @@ AppleCLCD::vsyncFired(OSObject *owner, IOTimerEventSource *sender)
  		    (IOMobileFramebufferUserClient *)fb->fClients->getObject(i);
  		client->notify(SWEET_FB_NOTIFY_VSYNC, values, 6);
  	}
@@ -142,6 +142,10 @@ index 714c7eb..766c41a 100644
 +	if (fb->fShadowVA != 0 && (count % 600) == 0) {
 +		/* every 10 s: is iOS connected to the display and drawing into it? */
 +		uint32_t ssum = 0, psum = 0;
++		IOLog("VINCE DIAG: surface id %u shadowva %p panel id %u panelva %p logical %ux%u panel %ux%u\n",
++		    fb->fSurface != NULL ? fb->fSurface->id : 0, (void *)fb->fShadowVA,
++		    fb->fPanelSurf != NULL ? fb->fPanelSurf->id : 0, (void *)fb->fPixels,
++		    fb->fLogicalW, fb->fLogicalH, fb->fWidth, fb->fHeight);
 +		{
 +			/* sample the shadow (BGRA, logical size) and the panel (24 bpp) */
 +			const uint32_t *sh = (const uint32_t *)fb->fShadowVA;
