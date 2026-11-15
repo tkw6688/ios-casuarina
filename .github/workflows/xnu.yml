@@ -16,8 +16,8 @@ on:
         description: make -k (collect all compile errors in one run)
         default: "true"
       runner:
-        description: macos-15-intel (reliable) or macos-15 (arm64, faster when not queued)
-        default: macos-15-intel
+        description: macos-15 (arm64, faster) or macos-15-intel (fallback when arm64 queues)
+        default: macos-15
       diagnostics:
         description: also upload the build tree and inspect the KDK libs (slow)
         default: "false"
@@ -56,7 +56,7 @@ jobs:
   build:
     # One runner per run: the arm64 and intel images build the same kernel, so the
     # second job only doubled the minutes (and the arm64 runners often queue).
-    runs-on: ${{ inputs.runner || 'macos-15-intel' }}
+    runs-on: ${{ inputs.runner || 'macos-15' }}
     # macos-15 / macos-15-intel ship Xcode 16.x: its iig matches the xnu-8796 IORPC ABI
     timeout-minutes: 120
     steps:
