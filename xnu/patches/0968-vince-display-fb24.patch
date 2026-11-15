@@ -28,7 +28,7 @@ index 1d3ee17..714c7eb 100644
  	PE_current_console(&video);
  	fPhys = video.v_baseAddr;
  	fWidth = (uint32_t)video.v_width;
-@@ -477,6 +489,115 @@ AppleCLCD::start(IOService *provider)
+@@ -477,6 +489,109 @@ AppleCLCD::start(IOService *provider)
  	return true;
  }
  
@@ -68,12 +68,6 @@ index 1d3ee17..714c7eb 100644
 +	fPixels = fPanelSurf != NULL ? fPanelSurf->kernelAddress() : 0;
 +	fSurface = sweet_surface_create_buffer(fLogicalW, fLogicalH, SWEET_FB_FORMAT_BGRA);
 +	fShadowVA = fSurface != NULL ? fSurface->kernelAddress() : 0;
-+	if (fShadowVA != 0) {
-+		volatile uint32_t *pat = (volatile uint32_t *)fShadowVA;
-+		for (uint64_t i = 0; i < (uint64_t)fLogicalW * (uint64_t)fLogicalH; i++) {
-+			pat[i] = 0x5a5a5a5au;
-+		}
-+	}
 +	fWorkLoop = IOWorkLoop::workLoop();
 +	fXMap = (uint16_t *)IOMallocData(fWidth * sizeof(uint16_t));
 +	if (fLock == NULL || fClients == NULL || fPixels == 0 || fShadowVA == 0 || fWorkLoop == NULL || fXMap == NULL) {
