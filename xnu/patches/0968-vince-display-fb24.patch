@@ -28,7 +28,7 @@ index 1d3ee17..714c7eb 100644
  	PE_current_console(&video);
  	fPhys = video.v_baseAddr;
  	fWidth = (uint32_t)video.v_width;
-@@ -477,6 +489,122 @@ AppleCLCD::start(IOService *provider)
+@@ -477,6 +489,109 @@ AppleCLCD::start(IOService *provider)
  	return true;
  }
  
@@ -43,19 +43,6 @@ index 1d3ee17..714c7eb 100644
 +#define VINCE_FB_H              2160
 +#endif
 +#define VINCE_FB_STRIDE         3240
-+
-+/* The clients map their surfaces write-combined; the kernel's cached view of the
-+ * same memory keeps stale lines, so drop them before reading the picture. */
-+static void
-+vince_dcache_invalidate(uintptr_t addr, uint64_t len)
-+{
-+	uint64_t line = 64;                     /* CTR_EL0.DminLine on this SoC */
-+	uint64_t a = addr & ~(line - 1);
-+	for (; a < addr + len; a += line) {
-+		__asm__ volatile ("dc ivac, %0" :: "r"(a) : "memory");
-+	}
-+	__asm__ volatile ("dsb sy" ::: "memory");
-+}
 +
 +bool
 +AppleCLCD::startVince(void)
@@ -218,11 +205,18 @@ index 1d3ee17..714c7eb 100644
  		}
  		uint64_t last = (uint64_t)s->offset + (uint64_t)(sy + h - 1) * s->bytesPerRow +
  		    (uint64_t)(sx + w) * 4;
-@@ -1424,13 +1560,60 @@ AppleCLCD::present(const uint8_t *rec)
+@@ -1424,13 +1560,67 @@ AppleCLCD::present(const uint8_t *rec)
  		}
  		if (src != 0 && bpe == 4) {
-+			vince_dcache_invalidate((uintptr_t)(src + s->offset),
-+			    (uint64_t)s->height * (uint64_t)s->bytesPerRow);
++			/* the clients map surfaces write-combined: drop the kernel's stale lines */
++			{
++				uintptr_t a = (uintptr_t)(src + s->offset) & ~(uintptr_t)63;
++				uintptr_t end = (uintptr_t)(src + s->offset) + (uint64_t)s->height * (uint64_t)s->bytesPerRow;
++				for (; a < end; a += 64) {
++					__asm__ volatile ("dc ivac, %0" :: "r"(a) : "memory");
++				}
++				__asm__ volatile ("dsb sy" ::: "memory");
++			}
 +			{
 +				const uint32_t *sp = (const uint32_t *)src;
 +				uint64_t n = (uint64_t)s->height * (uint64_t)(s->bytesPerRow / 4);
