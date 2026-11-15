@@ -141,6 +141,7 @@ jobs:
           grep -q 'blitVince' dxb/xnu/iokit/Kernel/arm/SweetFramebuffer.cpp || { echo 'MISSING 0968 blitVince'; missing=1; }
           grep -q 'skip empty layer' dxb/xnu/iokit/Kernel/arm/SweetFramebuffer.cpp || { echo 'MISSING 0968 empty-layer skip'; missing=1; }
           grep -q 'vince_pmic_scan' dxb/xnu/bsd/dev/vince_pmic.c || { echo 'MISSING 0981 vince_pmic_scan'; missing=1; }
+          grep -q 'sweet_dcache_clean' dxb/xnu/osfmk/arm/caches.c || { echo 'MISSING 0107 sweet_dcache_clean'; missing=1; }
           [ -z "${missing:-}" ]
 
       - name: Package build tree for local compiles
